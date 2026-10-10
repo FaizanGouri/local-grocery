@@ -20,10 +20,11 @@ const fadeIn = {
 
 /* ─── Status Config ───────────────────────────────────────── */
 const STATUS = {
-  processing:         { label: "Processing",       bg: "#FAEEDA", color: "#854F0B", step: 1, icon: "⏳" },
-  shipped:            { label: "Shipped",           bg: "#E6F1FB", color: "#185FA5", step: 2, icon: "🚚" },
-  "out-for-delivery": { label: "Out for delivery",  bg: "#E1F5EE", color: "#0F6E56", step: 3, icon: "📍" },
-  delivered:          { label: "Delivered",         bg: "#EAF3DE", color: "#3B6D11", step: 4, icon: "✅" },
+  placed:             { label: "Placed",            bg: "#FAEEDA", color: "#854F0B", step: 1, icon: "📋" },
+  processing:         { label: "Processing",        bg: "#FAEEDA", color: "#854F0B", step: 2, icon: "⏳" },
+  shipped:            { label: "Shipped",           bg: "#E6F1FB", color: "#185FA5", step: 3, icon: "🚚" },
+  "out-for-delivery": { label: "Out for delivery",  bg: "#E1F5EE", color: "#0F6E56", step: 4, icon: "📍" },
+  delivered:          { label: "Delivered",         bg: "#EAF3DE", color: "#3B6D11", step: 5, icon: "✅" },
   cancelled:          { label: "Cancelled",         bg: "#FCEBEB", color: "#A32D2D", step: 0, icon: "✕"  },
 };
 
@@ -31,15 +32,19 @@ const STEPS = ["Placed", "Processing", "Shipped", "Out for delivery", "Delivered
 
 /* ─── Progress Tracker ────────────────────────────────────── */
 const Tracker = ({ status }) => {
-  const cfg = STATUS[status] || STATUS.processing;
-  if (!cfg || status === "cancelled") return null;
+  const normStatus = (status || "").toLowerCase().replace(/[\s_]+/g, "-");
+  const cfg = STATUS[normStatus] || STATUS.processing;
+  if (!cfg || normStatus === "cancelled") return null;
+
+  const currentStep = cfg.step; // 1 to 5
 
   return (
     <div className="flex items-center mt-4 mb-2">
       {STEPS.map((label, i) => {
-        const done   = i < cfg.step;
-        const active = i === cfg.step - 1;
-        const last   = i === STEPS.length - 1;
+        const isDone = i < currentStep;
+        const isActive = i === currentStep - 1;
+        const isLineFilled = i < currentStep - 1;
+        const last = i === STEPS.length - 1;
         return (
           <div key={label} className="flex items-center" style={{ flex: last ? "0 0 auto" : 1 }}>
             <div className="flex flex-col items-center gap-1">
@@ -49,20 +54,20 @@ const Tracker = ({ status }) => {
                 transition={{ delay: i * 0.07, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                 style={{
                   width: 26, height: 26, borderRadius: "50%",
-                  background: done || active ? "#1D9E75" : "#E1F5EE",
-                  border: active ? "3px solid #0F6E56" : done ? "none" : "2px solid #9FE1CB",
-                  boxShadow: active ? "0 0 0 4px rgba(29,158,117,0.18)" : "none",
+                  background: isDone ? "#1D9E75" : "#E1F5EE",
+                  border: isActive && currentStep < 5 ? "3px solid #0F6E56" : isDone ? "none" : "2px solid #9FE1CB",
+                  boxShadow: isActive && currentStep < 5 ? "0 0 0 4px rgba(29,158,117,0.18)" : "none",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 11, fontWeight: 700,
-                  color: done || active ? "#fff" : "#9FE1CB",
+                  color: isDone ? "#fff" : "#9FE1CB",
                 }}
               >
-                {done ? "✓" : i + 1}
+                {isDone ? "✓" : i + 1}
               </motion.div>
               <span style={{
-                fontSize: 9, fontWeight: active ? 700 : 500,
+                fontSize: 9, fontWeight: isActive || isDone ? 600 : 500,
                 whiteSpace: "nowrap", textAlign: "center",
-                color: done || active ? "#0F6E56" : "#B4B2A9",
+                color: isDone ? "#0F6E56" : "#B4B2A9",
               }}>
                 {label}
               </span>
@@ -70,11 +75,11 @@ const Tracker = ({ status }) => {
             {!last && (
               <motion.div
                 initial={{ scaleX: 0 }}
-                animate={{ scaleX: done ? 1 : 0 }}
+                animate={{ scaleX: isLineFilled ? 1 : 0 }}
                 transition={{ delay: i * 0.1 + 0.15, duration: 0.35 }}
                 style={{
                   flex: 1, height: 3, marginBottom: 16,
-                  background: done ? "#1D9E75" : "#E1F5EE",
+                  background: isLineFilled ? "#1D9E75" : "#E1F5EE",
                   transformOrigin: "left", borderRadius: 2,
                 }}
               />
@@ -89,7 +94,8 @@ const Tracker = ({ status }) => {
 /* ─── Order Card ──────────────────────────────────────────── */
 const OrderCard = ({ order, defaultOpen }) => {
   const [open, setOpen] = useState(defaultOpen || false);
-  const cfg   = STATUS[order.status];
+  const normStatus = (order.status || "").toLowerCase().replace(/[\s_]+/g, "-");
+  const cfg   = STATUS[normStatus] || STATUS.processing;
   const total = order.items.reduce((s, i) => s + i.price * i.qty, 0);
 
   return (
@@ -245,7 +251,7 @@ const MyOrders = () => {
   const orders = ctxOrders.map(o => ({
   id:            o._id,
   date:          o.createdAt ? new Date(o.createdAt).toLocaleDateString("en-IN") : "Recent",
-  status:        o.status?.toLowerCase().replace(" ", "-") || "processing",
+  status:        o.status ? o.status.toLowerCase().replace(/[\s_]+/g, "-") : "processing",
   address:       o.address
                    ? (typeof o.address === "object"
                        ? `${o.address.firstName || ""} ${o.address.lastName || ""}, ${o.address.city || ""}`.trim()
