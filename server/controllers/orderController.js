@@ -167,3 +167,61 @@ export const updateOrderStatus = async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 };
+
+/* ================================
+    CANCEL USER ORDER : /api/order/cancel
+================================ */
+export const cancelUserOrder = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { orderId } = req.body;
+
+    if (!orderId) {
+      return res.json({ success: false, message: "Order ID is required" });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.json({ success: false, message: "Order not found" });
+    }
+
+    // Check ownership
+    if (order.userId.toString() !== userId.toString()) {
+      return res.json({ success: false, message: "Unauthorized access" });
+    }
+
+    const currentStatus = (order.status || "").toLowerCase();
+    if (currentStatus === "cancelled") {
+      return res.json({ success: false, message: "Order is already cancelled" });
+    }
+
+    if (
+      currentStatus === "shipped" ||
+      currentStatus === "out-for-delivery" ||
+      currentStatus === "delivered"
+    ) {
+      return res.json({
+        success: false,
+        message: "Order cannot be cancelled once it is shipped or delivered",
+      });
+    }
+
+    // Restock products
+    for (const item of order.items) {
+      const product = await Product.findById(item.product);
+      if (product) {
+        product.stockQuantity = (product.stockQuantity || 0) + item.quantity;
+        product.inStock = true;
+        await product.save();
+      }
+    }
+
+    order.status = "cancelled";
+    await order.save();
+
+    res.json({ success: true, message: "Order cancelled successfully" });
+  } catch (error) {
+    console.log(error.message);
+    res.json({ success: false, message: error.message });
+  }
+};

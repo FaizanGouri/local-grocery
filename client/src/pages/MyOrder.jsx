@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppContext } from "../context/AppContext";
+import toast from "react-hot-toast";
 
 /* ─── Animation Variants ──────────────────────────────────── */
 const stagger = {
@@ -92,7 +93,7 @@ const Tracker = ({ status }) => {
 };
 
 /* ─── Order Card ──────────────────────────────────────────── */
-const OrderCard = ({ order, defaultOpen }) => {
+const OrderCard = ({ order, defaultOpen, onCancel, isCancelling, onReorder, onReview }) => {
   const [open, setOpen] = useState(defaultOpen || false);
   const normStatus = (order.status || "").toLowerCase().replace(/[\s_]+/g, "-");
   const cfg   = STATUS[normStatus] || STATUS.processing;
@@ -102,7 +103,7 @@ const OrderCard = ({ order, defaultOpen }) => {
     <motion.div
       variants={fadeUp}
       layout
-      className="bg-white rounded-2xl overflow-hidden"
+      className="bg-white rounded-2xl overflow-hidden shadow-sm"
       style={{ border: "1px solid rgba(0,0,0,0.07)" }}
     >
       {/* ── Header ── */}
@@ -159,22 +160,23 @@ const OrderCard = ({ order, defaultOpen }) => {
               <div className="flex flex-col gap-2 mt-3">
                 {order.items.map(item => (
                   <div
-                    key={item.productId}
+                    key={item.productId || item.name}
                     className="flex items-center gap-3 rounded-xl px-3 py-2.5"
                     style={{ background: "#F8FAF9" }}
                   >
                     <div
-                      className="flex items-center justify-center rounded-xl flex-shrink-0"
-                      style={{
-                        width: 42, height: 42, fontSize: 18,
-                        background: "linear-gradient(135deg, #E1F5EE, #9FE1CB)",
-                      }}
+                      className="rounded-xl overflow-hidden flex-shrink-0 border border-gray-100 bg-white flex items-center justify-center"
+                      style={{ width: 44, height: 44 }}
                     >
-                      {item.icon || "🛒"}
+                      {item.image ? (
+                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span style={{ fontSize: 20 }}>🛒</span>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-800 truncate">{item.name}</p>
-                      <p className="text-xs text-gray-400">Qty: {item.qty}</p>
+                      <p className="text-xs text-gray-400">Qty: {item.qty} {item.category ? `· ${item.category}` : ""}</p>
                     </div>
                     <span className="text-sm font-bold" style={{ color: "#1D9E75" }}>
                       ₹{item.price * item.qty}
@@ -197,25 +199,42 @@ const OrderCard = ({ order, defaultOpen }) => {
                 ))}
               </div>
 
-              {/* Actions */}
-              {order.status === "delivered" && (
-                <div className="flex gap-2 mt-3">
+              {/* Customer Cancel Button */}
+              {(normStatus === "processing" || normStatus === "placed") && (
+                <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                  <span className="text-xs text-gray-400">Need to cancel?</span>
                   <motion.button
                     whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white"
+                    onClick={onCancel}
+                    disabled={isCancelling}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition cursor-pointer disabled:opacity-50"
+                  >
+                    {isCancelling ? "Cancelling..." : "Cancel Order"}
+                  </motion.button>
+                </div>
+              )}
+
+              {/* Actions for Delivered */}
+              {normStatus === "delivered" && (
+                <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                    onClick={onReorder}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition shadow-sm"
                     style={{ background: "#1D9E75", border: "none", cursor: "pointer", fontFamily: "inherit" }}
                   >
-                    Reorder
+                    Reorder Items
                   </motion.button>
                   <motion.button
                     whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
+                    onClick={onReview}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-50 transition"
                     style={{
-                      background: "transparent", border: "1.5px solid rgba(0,0,0,0.12)",
+                      background: "#fff", border: "1.5px solid rgba(0,0,0,0.12)",
                       color: "#5F5E5A", cursor: "pointer", fontFamily: "inherit",
                     }}
                   >
-                    Review
+                    Rate & Review
                   </motion.button>
                 </div>
               )}
@@ -245,44 +264,84 @@ const FILTERS = ["All", "Active", "Delivered", "Cancelled"];
 
 /* ─── Main Page ───────────────────────────────────────────── */
 const MyOrders = () => {
- 
-  const { orders: ctxOrders = [], navigate, fetchOrders  } = useAppContext();
+  const { orders: ctxOrders = [], navigate, fetchOrders, axios, addToCart } = useAppContext();
+  const [cancellingId, setCancellingId] = useState(null);
+
+  const handleCancelOrder = async (orderId) => {
+    if (!window.confirm("Are you sure you want to cancel this order?")) return;
+    setCancellingId(orderId);
+    try {
+      const { data } = await axios.post("/api/order/cancel", { orderId });
+      if (data.success) {
+        toast.success(data.message || "Order cancelled successfully");
+        await fetchOrders();
+      } else {
+        toast.error(data.message || "Failed to cancel order");
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || error.message);
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  const handleReorder = (order) => {
+    if (!order.items || order.items.length === 0) return;
+    let addedCount = 0;
+    order.items.forEach(item => {
+      if (item.productId) {
+        addToCart(item.productId);
+        addedCount++;
+      }
+    });
+    if (addedCount > 0) {
+      toast.success("Items added to your cart!");
+      navigate("/cart");
+    }
+  };
+
+  const handleReview = (order) => {
+    if (!order.items || order.items.length === 0) return;
+    const firstItem = order.items[0];
+    if (firstItem.productId) {
+      navigate(`/products/${(firstItem.category || "grocery").toLowerCase()}/${firstItem.productId}`);
+    }
+  };
 
   const orders = ctxOrders.map(o => ({
-  id:            o._id,
-  date:          o.createdAt ? new Date(o.createdAt).toLocaleDateString("en-IN") : "Recent",
-  status:        o.status ? o.status.toLowerCase().replace(/[\s_]+/g, "-") : "processing",
-  address:       o.address
-                   ? (typeof o.address === "object"
-                       ? `${o.address.firstName || ""} ${o.address.lastName || ""}, ${o.address.city || ""}`.trim()
-                       : String(o.address))
-                   : "Address not available",
-  paymentMethod: o.paymentType || "COD",
-  items:         (o.items || []).map(i => ({
-    productId: i.product?._id,
-    name:      i.product?.name || "Product",
-    price:     i.product?.offerPrice || 0,
-    qty:       i.quantity || 1,
-    category:  i.product?.category,
-  })),
-}));
+    id:            o._id,
+    date:          o.createdAt ? new Date(o.createdAt).toLocaleDateString("en-IN") : "Recent",
+    status:        o.status ? o.status.toLowerCase().replace(/[\s_]+/g, "-") : "processing",
+    address:       o.address
+                     ? (typeof o.address === "object"
+                         ? `${o.address.firstName || ""} ${o.address.lastName || ""}, ${o.address.city || ""}`.trim()
+                         : String(o.address))
+                     : "Address not available",
+    paymentMethod: o.paymentType || "COD",
+    items:         (o.items || []).map(i => ({
+      productId: i.product?._id,
+      name:      i.product?.name || "Product",
+      price:     i.product?.offerPrice ?? i.product?.price ?? 0,
+      qty:       i.quantity || 1,
+      category:  i.product?.category,
+      image:     i.product?.image ? (Array.isArray(i.product.image) ? i.product.image[0] : i.product.image) : null,
+    })),
+  }));
 
-useEffect(() => {
-  fetchOrders(); 
-  
-  
-  const interval = setInterval(fetchOrders, 30000);
-  return () => clearInterval(interval);
-}, []);
+  useEffect(() => {
+    fetchOrders();
+    const interval = setInterval(fetchOrders, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const [filter, setFilter] = useState("All");
 
   const filtered = orders.filter(o => {
     if (filter === "All")       return true;
-    if (filter === "Active")    return ["processing", "shipped", "out-for-delivery"].includes(o.status);
+    if (filter === "Active")    return ["processing", "shipped", "out-for-delivery", "placed"].includes(o.status);
     if (filter === "Delivered") return o.status === "delivered";
     if (filter === "Cancelled") return o.status === "cancelled";
-    return true; // ✅ fallback always returns a value
+    return true;
   });
 
   return (
@@ -337,7 +396,6 @@ useEffect(() => {
         </motion.div>
 
         {/* ── Orders / Empty ── */}
-        {/* ✅ AnimatePresence with mode="wait" — no flicker on filter switch */}
         <AnimatePresence mode="wait">
           {filtered.length > 0 ? (
             <motion.div
@@ -349,7 +407,15 @@ useEffect(() => {
               className="flex flex-col gap-3"
             >
               {filtered.map((order, i) => (
-                <OrderCard key={order.id} order={order} defaultOpen={i === 0} />
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  defaultOpen={i === 0}
+                  onCancel={() => handleCancelOrder(order.id)}
+                  isCancelling={cancellingId === order.id}
+                  onReorder={() => handleReorder(order)}
+                  onReview={() => handleReview(order)}
+                />
               ))}
             </motion.div>
           ) : (
