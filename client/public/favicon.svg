@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Bag Body -->
+  <rect x="8" y="24" width="48" height="36" rx="4" fill="#7C3AED"/>
+  <!-- Bag Flap / Top -->
+  <rect x="8" y="24" width="48" height="8" rx="4" fill="#6D28D9"/>
+  <!-- Handle -->
+  <path d="M22 24V16C22 10.477 26.477 6 32 6C37.523 6 42 10.477 42 16V24"
+        stroke="#A78BFA" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <!-- Plus / Cart Symbol -->
+  <line x1="32" y1="38" x2="32" y2="52" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  <line x1="25" y1="45" x2="39" y2="45" stroke="white" stroke-width="4" stroke-linecap="round"/>
+</svg>
