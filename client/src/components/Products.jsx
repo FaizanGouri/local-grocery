@@ -40,9 +40,13 @@ const Products = () => {
   // Filtering logic: both category and search query
   const query = (searchQuery || "").trim().toLowerCase();
   const filtered = products.filter((p) => {
+    const pCat = (p.category || "").toLowerCase();
+    const filterCat = activeFilter.toLowerCase();
     const matchesCategory =
       activeFilter === "All" ||
-      (p.category && p.category.toLowerCase() === activeFilter.toLowerCase());
+      pCat === filterCat ||
+      (filterCat === "drinks" && (pCat === "beverages" || pCat === "drink")) ||
+      (filterCat === "instant" && (pCat === "snacks" || pCat === "snack"));
 
     const matchesSearch =
       !query ||

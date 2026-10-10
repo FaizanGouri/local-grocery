@@ -13,9 +13,16 @@ const CategoryPage = () => {
   }, [categoryName]);
 
   const targetCategory = (categoryName || "").toLowerCase();
-  const filtered = products.filter(
-    (item) => item.category && item.category.toLowerCase() === targetCategory
-  );
+  const filtered = products.filter((item) => {
+    const itemCat = (item.category || "").toLowerCase();
+    return (
+      itemCat === targetCategory ||
+      (targetCategory === "drinks" && (itemCat === "beverages" || itemCat === "drink")) ||
+      (targetCategory === "beverages" && (itemCat === "drinks" || itemCat === "drink")) ||
+      (targetCategory === "instant" && (itemCat === "snacks" || itemCat === "snack")) ||
+      (targetCategory === "snacks" && (itemCat === "instant" || itemCat === "snack"))
+    );
+  });
 
   return (
     <div className="min-h-screen pt-24 pb-16 px-4 bg-gray-50">

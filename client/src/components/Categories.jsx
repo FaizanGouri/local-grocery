@@ -57,9 +57,15 @@ const Categories = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
           {categoryConfigs.map((cat, i) => {
             const isActive = active === i;
-            const count = products.filter(
-              (p) => p.category && p.category.toLowerCase() === cat.path.toLowerCase()
-            ).length;
+            const cPath = cat.path.toLowerCase();
+            const count = products.filter((p) => {
+              const pCat = (p.category || "").toLowerCase();
+              return (
+                pCat === cPath ||
+                (cPath === "drinks" && (pCat === "beverages" || pCat === "drink")) ||
+                (cPath === "instant" && (pCat === "snacks" || pCat === "snack"))
+              );
+            }).length;
 
             return (
               <motion.div

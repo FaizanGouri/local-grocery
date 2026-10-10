@@ -27,8 +27,9 @@ const STATUS = {
 };
 
 const CATEGORIES = [
-  "Fruits","Vegetables","Dairy","Bakery",
-  "Grains","Oils","Beverages","Snacks","Meat","Other",
+  "Fruits", "Vegetables", "Dairy", "Bakery",
+  "Drinks", "Instant", "Grains", "Oils",
+  "Beverages", "Snacks", "Meat", "Other",
 ];
 
 /* ─── Toast ──────────────────────────────────────────────── */
