@@ -124,7 +124,7 @@ const EmptyCart = ({ onContinue }) => (
 
 /* ─── Main Cart Component ─────────────────────────────────── */
 const Cart = () => {
-  const { cartItems, addToCart, removeFromCart, address, placeOrder, products, fetchAddress, axios  } = useAppContext();
+  const { cartItems, addToCart, removeFromCart, deleteFromCart, address, placeOrder, products, fetchAddress, axios } = useAppContext();
   const navigate  = useNavigate();
   const [payment, setPayment] = useState("Cash On Delivery");
 
@@ -140,8 +140,7 @@ const Cart = () => {
       return;
     }
     if (cartProducts.length === 0) return;
-    placeOrder();
-    navigate("/my-orders");
+    await placeOrder();
   };
 
 
@@ -203,11 +202,7 @@ const Cart = () => {
                           qty={cartItems[item._id]}
                           onAdd={() => addToCart(item._id)}
                           onRemove={() => removeFromCart(item._id)}
-                          onDelete={() => {
-                            // remove all qty
-                            const qty = cartItems[item._id];
-                            for (let i = 0; i < qty; i++) removeFromCart(item._id);
-                          }}
+                          onDelete={() => deleteFromCart(item._id)}
                         />
                       </AnimatePresence>
                     ))}

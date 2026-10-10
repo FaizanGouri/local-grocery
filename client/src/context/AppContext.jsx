@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -12,6 +12,7 @@ export const AppContext = createContext();
 
 export const AppContextProvider = ({ children }) => {
   const navigate = useNavigate();
+  const isCartLoaded = useRef(false);
 
   // ================= STATE =================
   const [user, setUser] = useState();
@@ -124,6 +125,15 @@ useEffect(() => {
     });
   };
 
+  const deleteFromCart = (id) => {
+    setCartItems((prev) => {
+      const updated = { ...prev };
+      delete updated[id];
+      toast("Item removed", { icon: "🗑️" });
+      return updated;
+    });
+  };
+
 // ================= CART FETCH =================
 // User login hote hi cart fetch karo
 const fetchCart = async () => {
@@ -134,6 +144,8 @@ const fetchCart = async () => {
     }
   } catch (error) {
     console.error("Cart fetch failed:", error.message);
+  } finally {
+    isCartLoaded.current = true;
   }
 };
 
@@ -142,6 +154,7 @@ useEffect(() => {
   if (user) {
     fetchCart();          
   } else {
+    isCartLoaded.current = false;
     setCartItems({});     
   }
 }, [user]);
@@ -149,8 +162,7 @@ useEffect(() => {
 // ================= CART SYNC TO BACKEND =================
 
 useEffect(() => {
-  if (!user) return;                    
-  if (Object.keys(cartItems).length === 0) return; 
+  if (!user || !isCartLoaded.current) return;                    
 
   const syncCart = async () => {
     try {
@@ -160,10 +172,10 @@ useEffect(() => {
     }
   };
 
-  // Debounce — har click pe request nahi, 500ms baad
-  const timer = setTimeout(syncCart, 500);
+  // Debounce — 400ms baad sync
+  const timer = setTimeout(syncCart, 400);
   return () => clearTimeout(timer);
-}, [cartItems]);
+}, [cartItems, user]);
 
 
 // Address fetch on login
@@ -228,7 +240,8 @@ const placeOrder = async () => {
         street:    address.street,
         city:      address.city,
         state:     address.state,
-        zip:       address.zip,
+        zip:       address.zip || address.zipcode,
+        zipcode:   address.zip || address.zipcode,
         country:   address.country,
         phone:     address.phone,
       },
@@ -239,11 +252,14 @@ const placeOrder = async () => {
       setCartItems({});
       await fetchOrders();
       navigate("/my-orders");
+      return true;
     } else {
       toast.error(data.message);
+      return false;
     }
   } catch (error) {
     toast.error(error.message);
+    return false;
   }
 };
 
@@ -267,6 +283,7 @@ const placeOrder = async () => {
     addToCart,
     updateCartItem,
     removeFromCart,
+    deleteFromCart,
 
     address,
     setAddress,

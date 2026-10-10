@@ -27,7 +27,7 @@ export const register = async (req, res)=>{
             httpOnly: true, // Prevent JavaScript to access cookie
             secure: process.env.NODE_ENV === 'production', // Use secure cookie in production
             sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict', //CSRF protection
-            maxAge: 7 * 24 * 60 * 1000, // Cookie expiration time
+            maxAge: 7 * 24 * 60 * 60 * 1000, // Cookie expiration time (7 days)
 
         })
 
@@ -65,7 +65,7 @@ export const login = async (req, res) =>{
             httpOnly: true, // Prevent JavaScript to access cookie
             secure: process.env.NODE_ENV === 'production', // Use secure cookie in production
             sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict', //CSRF protection
-            maxAge: 7 * 24 * 60 * 1000, // Cookie expiration time
+            maxAge: 7 * 24 * 60 * 60 * 1000, // Cookie expiration time (7 days)
 
         })
 

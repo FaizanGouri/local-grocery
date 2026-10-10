@@ -7,7 +7,7 @@ const orderRouter = express.Router();
 
 orderRouter.post("/cod", authUser, placeOrderCOD);
 orderRouter.get("/user", authUser, getUserOrders);
-orderRouter.get("/all", getAllOrders); 
+orderRouter.get("/all", authSeller, getAllOrders); 
 orderRouter.post("/status", authSeller, updateOrderStatus);
 
 export default orderRouter;

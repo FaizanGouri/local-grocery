@@ -58,7 +58,7 @@ function App() {
           </Routes>
         </div>
         
-        <Footer />
+        {isSellerPath ? null : <Footer />}
       </div>
     </>
   );

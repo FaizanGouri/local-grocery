@@ -182,7 +182,7 @@ const OrderCard = ({ order, defaultOpen }) => {
                 {[
                   { label: "Total",   value: `₹${total}` },
                   { label: "Payment", value: order.paymentMethod },
-                  { label: "Ship to", value: order.address.split(",")[0] },
+                  { label: "Ship to", value: (typeof order.address === "string" ? order.address.split(",")[0] : "Address N/A") || "Address N/A" },
                 ].map(m => (
                   <div key={m.label} className="rounded-xl p-2.5" style={{ background: "#F1EFE8" }}>
                     <p className="text-xs text-gray-400 font-medium">{m.label}</p>
@@ -244,17 +244,19 @@ const MyOrders = () => {
 
   const orders = ctxOrders.map(o => ({
   id:            o._id,
-  date:          new Date(o.createdAt).toLocaleDateString("en-IN"),
+  date:          o.createdAt ? new Date(o.createdAt).toLocaleDateString("en-IN") : "Recent",
   status:        o.status?.toLowerCase().replace(" ", "-") || "processing",
-  address:       typeof o.address === "object"
-                   ? `${o.address.firstName}, ${o.address.city}`
-                   : o.address,
+  address:       o.address
+                   ? (typeof o.address === "object"
+                       ? `${o.address.firstName || ""} ${o.address.lastName || ""}, ${o.address.city || ""}`.trim()
+                       : String(o.address))
+                   : "Address not available",
   paymentMethod: o.paymentType || "COD",
-  items:         o.items.map(i => ({
+  items:         (o.items || []).map(i => ({
     productId: i.product?._id,
     name:      i.product?.name || "Product",
     price:     i.product?.offerPrice || 0,
-    qty:       i.quantity,
+    qty:       i.quantity || 1,
     category:  i.product?.category,
   })),
 }));

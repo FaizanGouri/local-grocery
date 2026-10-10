@@ -1,5 +1,6 @@
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
+import User from "../models/User.js";
 
 /* ================================
     PLACE ORDER (COD ONLY) : /api/order/cod
@@ -49,6 +50,9 @@ export const placeOrderCOD = async (req, res) => {
       isPaid: false,
       status: "processing",
     });
+
+    // Clear user cart in database after successful order
+    await User.findByIdAndUpdate(userId, { cartItems: {} });
 
     res.json({
       success: true,
