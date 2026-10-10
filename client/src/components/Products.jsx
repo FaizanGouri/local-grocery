@@ -147,6 +147,7 @@ const Products = () => {
               {filtered.map((product) => {
                 const loved = wishlist.includes(product._id);
                 const imgSrc = Array.isArray(product.image) ? product.image[0] : product.image;
+                const isOutOfStock = product.inStock === false || (product.stockQuantity !== undefined && product.stockQuantity <= 0);
 
                 return (
                   <motion.div
@@ -159,15 +160,22 @@ const Products = () => {
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0 }}
-                    className="bg-white rounded-2xl shadow-md overflow-hidden border group"
+                    className="bg-white rounded-2xl shadow-md overflow-hidden border group relative cursor-pointer"
                   >
+                    {/* Out of Stock badge */}
+                    {isOutOfStock && (
+                      <div className="absolute top-3 left-3 z-10 bg-red-500/95 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full shadow backdrop-blur-sm">
+                        Out of stock
+                      </div>
+                    )}
+
                     {/* Wishlist */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         toggleWish(product._id);
                       }}
-                      className="absolute top-3 right-3 z-10 w-9 h-9 bg-white rounded-full flex items-center justify-center shadow"
+                      className="absolute top-3 right-3 z-10 w-9 h-9 bg-white rounded-full flex items-center justify-center shadow hover:scale-105 transition"
                     >
                       {loved ? (
                         <FaHeart className="text-red-500" />
@@ -177,29 +185,32 @@ const Products = () => {
                     </button>
 
                     {/* Image */}
-                    <div className="h-44 bg-gray-50 overflow-hidden">
+                    <div className="h-44 bg-gray-50 overflow-hidden relative">
                       <img
                         src={imgSrc}
                         alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition"
+                        className={`w-full h-full object-cover group-hover:scale-105 transition ${isOutOfStock ? "grayscale opacity-75" : ""}`}
                       />
                     </div>
 
                   {/* Info */}
                   <div className="p-5">
-                    <span className="text-xs text-emerald-600 font-semibold uppercase">
+                    <span className="text-xs text-emerald-600 font-semibold uppercase tracking-wider">
                       {product.category}
                     </span>
 
-                    <h3 className="font-bold text-gray-800 mt-1">
+                    <h3 className="font-bold text-gray-800 mt-1 line-clamp-1">
                       {product.name}
                     </h3>
 
                     {/* Rating */}
-                    <div className="flex items-center gap-1 mt-2">
+                    <div className="flex items-center gap-1.5 mt-2">
                       <FaStar className="text-amber-400 text-xs" />
-                      <span className="text-sm font-semibold">
-                        4.5
+                      <span className="text-sm font-semibold text-gray-700">
+                        {product.rating ? Number(product.rating).toFixed(1) : "4.5"}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        ({product.numReviews !== undefined ? product.numReviews : 12})
                       </span>
                     </div>
 
@@ -215,7 +226,11 @@ const Products = () => {
                         </span>
                       </div>
 
-                      {cartItems[product._id] ? (
+                      {isOutOfStock ? (
+                        <span className="text-xs font-semibold text-rose-500 bg-rose-50 border border-rose-200 px-2.5 py-1.5 rounded-lg select-none">
+                          Sold Out
+                        </span>
+                      ) : cartItems[product._id] ? (
                         <div className="flex items-center gap-2 bg-emerald-100 px-2 py-1 rounded-lg">
 
                           <button
@@ -223,18 +238,21 @@ const Products = () => {
                               e.stopPropagation();
                               removeFromCart(product._id);
                             }}
-                            className="w-7 h-7 bg-white rounded shadow"
+                            className="w-7 h-7 bg-white rounded shadow hover:bg-gray-100 font-bold"
                           >
                             -
                           </button>
 
-                          <span className="font-semibold">
+                          <span className="font-semibold text-sm">
                             {cartItems[product._id]}
                           </span>
 
                           <button
-                            onClick={() => addToCart(product._id)}
-                            className="w-7 h-7 bg-white rounded shadow"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addToCart(product._id);
+                            }}
+                            className="w-7 h-7 bg-white rounded shadow hover:bg-gray-100 font-bold"
                           >
                             +
                           </button>
@@ -246,7 +264,7 @@ const Products = () => {
                             e.stopPropagation();
                             addToCart(product._id);
                           }}
-                          className="w-10 h-10 bg-emerald-500 text-white rounded-xl flex items-center justify-center"
+                          className="w-10 h-10 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-md transition"
                         >
                           <FaShoppingCart />
                         </button>

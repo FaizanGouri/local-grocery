@@ -3,27 +3,29 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { useNavigate } from "react-router-dom";
+import { useAppContext } from "../context/AppContext";
 import {
   FaAppleAlt,
   FaCarrot,
   FaCheese,
   FaBreadSlice,
-  FaFish,
   FaWineBottle,
+  FaCookieBite,
 } from 'react-icons/fa';
 
-const categories = [
-  { icon: <FaAppleAlt />, name: 'Fruits', count: 48, gradient: 'from-red-400 to-pink-500' },
-  { icon: <FaCarrot />, name: 'Vegetables', count: 62, gradient: 'from-orange-400 to-amber-500' },
-  { icon: <FaCheese />, name: 'Dairy', count: 25, gradient: 'from-yellow-400 to-amber-400' },
-  { icon: <FaBreadSlice />, name: 'Bakery', count: 34, gradient: 'from-amber-600 to-yellow-700' },
-  { icon: <FaFish />, name: 'Seafood', count: 19, gradient: 'from-blue-400 to-cyan-500' },
-  { icon: <FaWineBottle />, name: 'Beverages', count: 41, gradient: 'from-purple-400 to-indigo-500' },
+const categoryConfigs = [
+  { icon: <FaAppleAlt />, name: 'Fruits', path: 'Fruits', gradient: 'from-rose-400 to-pink-500' },
+  { icon: <FaCarrot />, name: 'Vegetables', path: 'Vegetables', gradient: 'from-orange-400 to-amber-500' },
+  { icon: <FaCheese />, name: 'Dairy', path: 'Dairy', gradient: 'from-yellow-400 to-amber-400' },
+  { icon: <FaBreadSlice />, name: 'Bakery', path: 'Bakery', gradient: 'from-amber-600 to-yellow-700' },
+  { icon: <FaWineBottle />, name: 'Cold Drinks', path: 'Drinks', gradient: 'from-purple-400 to-indigo-500' },
+  { icon: <FaCookieBite />, name: 'Instant Food', path: 'Instant', gradient: 'from-blue-400 to-cyan-500' },
 ];
 
 const Categories = () => {
   const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.15 });
   const [active, setActive] = useState(null);
+  const { products = [] } = useAppContext();
   const navigate = useNavigate();
 
   return (
@@ -53,8 +55,12 @@ const Categories = () => {
 
         {/* grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
-          {categories.map((cat, i) => {
+          {categoryConfigs.map((cat, i) => {
             const isActive = active === i;
+            const count = products.filter(
+              (p) => p.category && p.category.toLowerCase() === cat.path.toLowerCase()
+            ).length;
+
             return (
               <motion.div
                 key={cat.name}
@@ -64,7 +70,7 @@ const Categories = () => {
                 whileHover={{ y: -6 }}
                 onClick={() => {
                   setActive(isActive ? null : i);
-                  navigate(`/category/${cat.name.toLowerCase()}`);
+                  navigate(`/category/${cat.path.toLowerCase()}`);
                 }}
                 className={`relative flex flex-col items-center justify-center
                             rounded-2xl p-6 cursor-pointer border transition-all duration-300
@@ -83,8 +89,10 @@ const Categories = () => {
                   {cat.icon}
                 </div>
 
-                <h3 className="font-semibold text-gray-800 text-sm">{cat.name}</h3>
-                <span className="text-xs text-gray-400 mt-1">{cat.count} items</span>
+                <h3 className="font-semibold text-gray-800 text-sm text-center">{cat.name}</h3>
+                <span className="text-xs text-gray-400 mt-1 font-medium">
+                  {count} {count === 1 ? 'item' : 'items'}
+                </span>
 
                 {/* active indicator */}
                 <AnimatePresence>

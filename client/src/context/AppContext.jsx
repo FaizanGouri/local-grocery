@@ -90,6 +90,19 @@ useEffect(() => {
 
   // ================= CART =================
   const addToCart = (id) => {
+    const product = products.find((p) => p._id === id);
+    if (product) {
+      if (product.inStock === false || (product.stockQuantity !== undefined && product.stockQuantity <= 0)) {
+        toast.error(`"${product.name}" is currently out of stock`);
+        return;
+      }
+      const currentQty = cartItems[id] || 0;
+      if (product.stockQuantity !== undefined && currentQty >= product.stockQuantity) {
+        toast.error(`Only ${product.stockQuantity} items available in stock`);
+        return;
+      }
+    }
+
     setCartItems((prev) => {
       const updated = {
         ...prev,
@@ -103,6 +116,11 @@ useEffect(() => {
   };
 
   const updateCartItem = (id, qty) => {
+    const product = products.find((p) => p._id === id);
+    if (product && product.stockQuantity !== undefined && qty > product.stockQuantity) {
+      toast.error(`Only ${product.stockQuantity} items available in stock`);
+      qty = product.stockQuantity;
+    }
     setCartItems((prev) => ({
       ...prev,
       [id]: qty,

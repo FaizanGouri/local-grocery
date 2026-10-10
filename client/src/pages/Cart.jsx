@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAppContext } from "../context/AppContext";
 import { useNavigate } from "react-router-dom";
 import { FaTrash } from "react-icons/fa";
+import toast from "react-hot-toast";
 
 /* ─── Variants ────────────────────────────────────────────── */
 const stagger = {
@@ -46,7 +47,14 @@ const CartItem = ({ item, qty, onAdd, onRemove, onDelete }) => (
       {/* Name + category */}
       <div className="flex-1 min-w-0">
         <p className="font-bold text-sm text-gray-800 truncate">{item.name}</p>
-        <p className="text-xs text-gray-400 mt-0.5">{item.category || "Grocery"}</p>
+        <div className="flex items-center gap-2 mt-0.5">
+          <p className="text-xs text-gray-400">{item.category || "Grocery"}</p>
+          {(item.inStock === false || (item.stockQuantity !== undefined && item.stockQuantity <= 0)) && (
+            <span className="text-[10px] font-semibold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.2 rounded">
+              Out of stock
+            </span>
+          )}
+        </div>
 
         {/* Qty controls */}
         <div className="flex items-center gap-2 mt-2.5">
@@ -140,6 +148,25 @@ const Cart = () => {
       return;
     }
     if (cartProducts.length === 0) return;
+
+    // Check if any product in cart is out of stock
+    const outOfStockItem = cartProducts.find(
+      (p) => p.inStock === false || (p.stockQuantity !== undefined && p.stockQuantity <= 0)
+    );
+    if (outOfStockItem) {
+      toast.error(`"${outOfStockItem.name}" is out of stock. Please remove it from cart.`);
+      return;
+    }
+
+    // Check if requested quantity exceeds stock
+    const exceededItem = cartProducts.find(
+      (p) => p.stockQuantity !== undefined && cartItems[p._id] > p.stockQuantity
+    );
+    if (exceededItem) {
+      toast.error(`Only ${exceededItem.stockQuantity} items available for "${exceededItem.name}". Please reduce quantity.`);
+      return;
+    }
+
     await placeOrder();
   };
 

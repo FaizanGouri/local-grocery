@@ -1,5 +1,6 @@
 import { cloudinary } from "../config/cloudinary.js";
 import Product from "../models/Product.js";
+import User from "../models/User.js";
 
 // Add Product : POST /api/product/add
 export const addProduct = async (req, res) => {
@@ -87,6 +88,76 @@ export const deleteProduct = async (req, res) => {
 
     await Product.findByIdAndDelete(id);
     res.json({ success: true, message: "Product Deleted" });
+  } catch (error) {
+    console.log(error.message);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// ✅ NEW — Add or Update Product Review : POST /api/product/review
+export const addProductReview = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { productId, rating, comment } = req.body;
+
+    if (!productId || !rating || !comment) {
+      return res.json({
+        success: false,
+        message: "Product ID, rating, and comment are required",
+      });
+    }
+
+    const numRating = Number(rating);
+    if (isNaN(numRating) || numRating < 1 || numRating > 5) {
+      return res.json({
+        success: false,
+        message: "Rating must be between 1 and 5",
+      });
+    }
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.json({ success: false, message: "Product not found" });
+    }
+
+    const user = await User.findById(userId);
+    const reviewerName = user ? user.name : "Customer";
+
+    if (!product.reviews) {
+      product.reviews = [];
+    }
+
+    const existingIndex = product.reviews.findIndex(
+      (r) => r.userId && r.userId.toString() === userId.toString()
+    );
+
+    if (existingIndex !== -1) {
+      product.reviews[existingIndex].rating = numRating;
+      product.reviews[existingIndex].comment = comment;
+      product.reviews[existingIndex].createdAt = new Date();
+    } else {
+      product.reviews.push({
+        userId,
+        name: reviewerName,
+        rating: numRating,
+        comment,
+        createdAt: new Date(),
+      });
+    }
+
+    const totalRating = product.reviews.reduce((acc, r) => acc + r.rating, 0);
+    product.rating = Number((totalRating / product.reviews.length).toFixed(1));
+    product.numReviews = product.reviews.length;
+
+    await product.save();
+
+    res.json({
+      success: true,
+      message: "Review added successfully",
+      rating: product.rating,
+      numReviews: product.numReviews,
+      reviews: product.reviews,
+    });
   } catch (error) {
     console.log(error.message);
     res.json({ success: false, message: error.message });

@@ -18,23 +18,50 @@ export const placeOrderCOD = async (req, res) => {
     }
 
     let subtotal = 0;
+    const formattedItems = [];
+    const productsToUpdate = [];
 
-    const formattedItems = await Promise.all(
-      items.map(async (item) => {
-        const product = await Product.findById(item.product);
+    for (const item of items) {
+      const product = await Product.findById(item.product);
+      if (!product) {
+        return res.json({ success: false, message: "Product not found" });
+      }
 
-        if (!product) {
-          throw new Error("Product not found");
-        }
+      if (product.inStock === false) {
+        return res.json({
+          success: false,
+          message: `"${product.name}" is currently out of stock`,
+        });
+      }
 
-        subtotal += product.offerPrice * item.quantity;
+      const currentStock = product.stockQuantity !== undefined ? product.stockQuantity : 50;
+      if (currentStock < item.quantity) {
+        return res.json({
+          success: false,
+          message: `Only ${currentStock} item(s) left in stock for "${product.name}"`,
+        });
+      }
 
-        return {
-          product: item.product,
-          quantity: item.quantity,
-        };
-      })
-    );
+      subtotal += product.offerPrice * item.quantity;
+      formattedItems.push({
+        product: item.product,
+        quantity: item.quantity,
+      });
+
+      const newStock = Math.max(0, currentStock - item.quantity);
+      productsToUpdate.push({
+        product,
+        newStock,
+        inStock: newStock > 0,
+      });
+    }
+
+    // Decrement stock in database
+    for (const update of productsToUpdate) {
+      update.product.stockQuantity = update.newStock;
+      update.product.inStock = update.inStock;
+      await update.product.save();
+    }
 
     //  tax = 2%
     const tax = subtotal * 0.02;
@@ -113,9 +140,27 @@ export const getAllOrders = async (req, res) => {
 export const updateOrderStatus = async (req, res) => {
   try {
     const { orderId, status } = req.body;
-    
-    await Order.findByIdAndUpdate(orderId, { status });
-    
+    const existingOrder = await Order.findById(orderId);
+
+    if (!existingOrder) {
+      return res.json({ success: false, message: "Order not found" });
+    }
+
+    // If order is changing to cancelled and wasn't already cancelled, restock products
+    if (status?.toLowerCase() === "cancelled" && existingOrder.status?.toLowerCase() !== "cancelled") {
+      for (const item of existingOrder.items) {
+        const product = await Product.findById(item.product);
+        if (product) {
+          product.stockQuantity = (product.stockQuantity || 0) + item.quantity;
+          product.inStock = true;
+          await product.save();
+        }
+      }
+    }
+
+    existingOrder.status = status;
+    await existingOrder.save();
+
     res.json({ success: true, message: "Status updated" });
   } catch (error) {
     console.log(error.message);

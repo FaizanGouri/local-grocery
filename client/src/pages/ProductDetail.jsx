@@ -3,6 +3,8 @@ import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
 import { motion, AnimatePresence } from "framer-motion";
+import { FaStar } from "react-icons/fa";
+import toast from "react-hot-toast";
 
 const ProductDetail = () => {
     const { id } = useParams();
@@ -14,7 +16,9 @@ const ProductDetail = () => {
         navigate,
         user,
         setShowUserLogin,
-        products, // ✅ real products AppContext se
+        products,
+        axios,
+        fetchProducts,
     } = useAppContext();
 
     const [product, setProduct] = useState(null);
@@ -23,6 +27,12 @@ const ProductDetail = () => {
     const [relatedProducts, setRelatedProducts] = useState([]);
     const [imageLoaded, setImageLoaded] = useState(false);
 
+    // Reviews state
+    const [reviewsList, setReviewsList] = useState([]);
+    const [reviewRating, setReviewRating] = useState(5);
+    const [reviewComment, setReviewComment] = useState("");
+    const [submittingReview, setSubmittingReview] = useState(false);
+
     useEffect(() => {
         // ✅ dummyProducts ki jagah real products se dhundho
         if (!products || products.length === 0) return; // products load hone ka wait karo
@@ -30,6 +40,7 @@ const ProductDetail = () => {
         const found = products.find((p) => p._id === id);
         if (found) {
             setProduct(found);
+            setReviewsList(found.reviews || []);
             setSelectedImage(0);
             setImageLoaded(false);
 
@@ -41,6 +52,45 @@ const ProductDetail = () => {
 
         window.scrollTo({ top: 0, behavior: "smooth" });
     }, [id, products]); // ✅ products bhi dependency mein
+
+    const handleSubmitReview = async (e) => {
+        e.preventDefault();
+        if (!user) {
+            setShowUserLogin(true);
+            return;
+        }
+        if (!reviewComment.trim()) {
+            toast.error("Please enter your review comment");
+            return;
+        }
+        setSubmittingReview(true);
+        try {
+            const { data } = await axios.post("/api/product/review", {
+                productId: product._id,
+                rating: Number(reviewRating),
+                comment: reviewComment.trim(),
+            });
+            if (data.success) {
+                toast.success("Thank you! Review submitted.");
+                setReviewsList(data.reviews || []);
+                setProduct((prev) => ({
+                    ...prev,
+                    rating: data.rating,
+                    numReviews: data.numReviews,
+                    reviews: data.reviews,
+                }));
+                setReviewComment("");
+                setReviewRating(5);
+                if (fetchProducts) fetchProducts();
+            } else {
+                toast.error(data.message || "Failed to submit review");
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.message || err.message);
+        } finally {
+            setSubmittingReview(false);
+        }
+    };
 
     // ✅ Loading state — products fetch ho rahe hain
     if (!product && products.length === 0) {
@@ -80,7 +130,10 @@ const ProductDetail = () => {
         ? Math.round(((product.price - product.offerPrice) / product.price) * 100)
         : 0;
 
+    const isOutOfStock = product.inStock === false || (product.stockQuantity !== undefined && product.stockQuantity <= 0);
+
     const handleAddToCart = () => {
+        if (isOutOfStock) return;
         if (!user) {
             setShowUserLogin(true);
             return;
@@ -304,15 +357,30 @@ const ProductDetail = () => {
                             transition={{ delay: 0.6 }}
                             className="mt-8"
                         >
-                            {!inCart ? (
-                                <motion.button
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.97 }}
-                                    onClick={handleAddToCart}
-                                    className="w-full sm:w-auto px-10 py-3.5 bg-emerald-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
-                                >
-                                    Add to Cart
-                                </motion.button>
+                            {isOutOfStock ? (
+                                <div className="flex flex-col gap-2">
+                                    <button
+                                        disabled
+                                        className="w-full sm:w-auto px-10 py-3.5 bg-gray-200 text-gray-500 font-semibold rounded-xl cursor-not-allowed select-none border border-gray-300"
+                                    >
+                                        Out of Stock
+                                    </button>
+                                    <span className="text-xs text-rose-500 font-medium">This product is currently out of stock and cannot be ordered.</span>
+                                </div>
+                            ) : !inCart ? (
+                                <div className="flex flex-col gap-2">
+                                    <motion.button
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.97 }}
+                                        onClick={handleAddToCart}
+                                        className="w-full sm:w-auto px-10 py-3.5 bg-emerald-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
+                                    >
+                                        Add to Cart
+                                    </motion.button>
+                                    {product.stockQuantity !== undefined && product.stockQuantity <= 5 && product.stockQuantity > 0 && (
+                                        <span className="text-xs text-amber-600 font-semibold">Only {product.stockQuantity} items left in stock — order soon!</span>
+                                    )}
+                                </div>
                             ) : (
                                 <div className="flex items-center gap-4">
                                     <div className="flex items-center bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
@@ -430,32 +498,109 @@ const ProductDetail = () => {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="space-y-6">
-                                    {[
-                                        { name: "Rahul M.",  rating: 5, date: "2 days ago",   text: "Absolutely fresh! Delivered within hours. Will definitely order again." },
-                                        { name: "Priya S.",  rating: 4, date: "1 week ago",   text: "Good quality and well packaged. Slightly smaller than expected but taste was great." },
-                                        { name: "Arjun K.",  rating: 5, date: "2 weeks ago",  text: "Best quality on any online platform. Highly recommended for daily use." },
-                                    ].map((review, i) => (
-                                        <motion.div
-                                            key={i}
-                                            initial={{ opacity: 0, x: -15 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{ delay: i * 0.1 }}
-                                            className="flex gap-4 pb-5 border-b border-gray-100 last:border-0"
-                                        >
-                                            <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center flex-shrink-0 text-sm">
-                                                {review.name.charAt(0)}
+                                <div className="space-y-8">
+                                    {/* Reviews List */}
+                                    <div className="space-y-6">
+                                        {reviewsList.length === 0 ? (
+                                            <div className="text-center py-8 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                                                <p className="text-2xl mb-2">⭐</p>
+                                                <p className="text-sm font-semibold text-gray-700">No reviews yet</p>
+                                                <p className="text-xs text-gray-400 mt-1">Be the first to share your experience with this grocery item!</p>
                                             </div>
-                                            <div className="flex-1">
-                                                <div className="flex items-center justify-between flex-wrap gap-2">
-                                                    <span className="font-semibold text-gray-800 text-sm">{review.name}</span>
-                                                    <span className="text-xs text-gray-400">{review.date}</span>
+                                        ) : (
+                                            reviewsList.map((review, i) => (
+                                                <motion.div
+                                                    key={review._id || i}
+                                                    initial={{ opacity: 0, x: -15 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: i * 0.05 }}
+                                                    className="flex gap-4 pb-5 border-b border-gray-100 last:border-0"
+                                                >
+                                                    <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center flex-shrink-0 text-sm">
+                                                        {(review.name || "U").charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center justify-between flex-wrap gap-2">
+                                                            <span className="font-semibold text-gray-800 text-sm">{review.name || "Customer"}</span>
+                                                            <span className="text-xs text-gray-400">
+                                                                {review.createdAt
+                                                                    ? new Date(review.createdAt).toLocaleDateString("en-IN", {
+                                                                          year: "numeric",
+                                                                          month: "short",
+                                                                          day: "numeric",
+                                                                      })
+                                                                    : "Verified Customer"}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex gap-0.5 mt-1">{renderStars(review.rating)}</div>
+                                                        <p className="text-sm text-gray-600 mt-2 leading-relaxed">
+                                                            {review.comment || review.text}
+                                                        </p>
+                                                    </div>
+                                                </motion.div>
+                                            ))
+                                        )}
+                                    </div>
+
+                                    {/* Write Review Form */}
+                                    <div className="pt-6 border-t border-gray-100">
+                                        <h4 className="text-base font-bold text-gray-800 mb-3">
+                                            {user ? "Write a Review" : "Sign In to Write a Review"}
+                                        </h4>
+                                        <form onSubmit={handleSubmitReview} className="space-y-4">
+                                            <div>
+                                                <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                                                    Your Rating
+                                                </label>
+                                                <div className="flex items-center gap-1.5">
+                                                    {[1, 2, 3, 4, 5].map((star) => (
+                                                        <button
+                                                            key={star}
+                                                            type="button"
+                                                            onClick={() => setReviewRating(star)}
+                                                            className="p-1 hover:scale-110 transition cursor-pointer"
+                                                        >
+                                                            <FaStar
+                                                                className={`text-xl ${
+                                                                    star <= reviewRating
+                                                                        ? "text-amber-400"
+                                                                        : "text-gray-200"
+                                                                }`}
+                                                            />
+                                                        </button>
+                                                    ))}
+                                                    <span className="text-xs font-semibold text-gray-500 ml-2">
+                                                        {reviewRating} out of 5 stars
+                                                    </span>
                                                 </div>
-                                                <div className="flex gap-0.5 mt-1">{renderStars(review.rating)}</div>
-                                                <p className="text-sm text-gray-600 mt-2 leading-relaxed">{review.text}</p>
                                             </div>
-                                        </motion.div>
-                                    ))}
+
+                                            <div>
+                                                <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                                                    Your Review / Feedback
+                                                </label>
+                                                <textarea
+                                                    rows={3}
+                                                    value={reviewComment}
+                                                    onChange={(e) => setReviewComment(e.target.value)}
+                                                    placeholder="Tell others about freshness, packaging, and quality..."
+                                                    className="w-full text-sm rounded-xl border border-gray-200 p-3.5 focus:border-emerald-500 focus:outline-none transition resize-none"
+                                                />
+                                            </div>
+
+                                            <button
+                                                type="submit"
+                                                disabled={submittingReview}
+                                                className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-semibold transition shadow-md disabled:opacity-50 cursor-pointer"
+                                            >
+                                                {submittingReview
+                                                    ? "Submitting..."
+                                                    : user
+                                                    ? "Submit Review"
+                                                    : "Sign In & Submit"}
+                                            </button>
+                                        </form>
+                                    </div>
                                 </div>
                             )}
                         </motion.div>
